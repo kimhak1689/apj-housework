@@ -1,0 +1,629 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>APJ Housework Quick Tracker</title>
+  <style>
+    :root{
+      --bg-start:#0a0e1a;
+      --bg-end:#1a1f35;
+      --card-bg:#141824;
+      --card-border:rgba(139,92,246,0.15);
+      --text-primary:#f8fafc;
+      --text-secondary:#94a3b8;
+      --accent:#8b5cf6;
+      --accent-hover:#a78bfa;
+      --success:#10b981;
+      --danger:#ef4444;
+      --glow:rgba(139,92,246,0.2);
+      color-scheme:dark;
+    }
+    *{box-sizing:border-box;}
+    html,body{
+      height:100%;
+      margin:0;
+      background:linear-gradient(135deg,var(--bg-start) 0%, var(--bg-end) 100%);
+      font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+      color:var(--text-primary);
+    }
+    @keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes slideIn{from{opacity:0;transform:translateX(-20px)}to{opacity:1;transform:translateX(0)}}
+    @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.02)}}
+    
+    .wrap{
+      max-width:1200px;
+      margin:0 auto;
+      padding:32px 20px;
+      animation:fadeIn 0.5s ease;
+    }
+    
+    header{
+      text-align:center;
+      margin-bottom:48px;
+      position:relative;
+    }
+    h1{
+      font-size:42px;
+      margin:0 0 12px;
+      background:linear-gradient(135deg,#a78bfa 0%,#8b5cf6 50%,#6366f1 100%);
+      -webkit-background-clip:text;
+      background-clip:text;
+      -webkit-text-fill-color:transparent;
+      font-weight:800;
+      letter-spacing:-1px;
+    }
+    .lead{
+      font-size:16px;
+      color:var(--text-secondary);
+      max-width:600px;
+      margin:0 auto 20px;
+      line-height:1.6;
+    }
+    .users-badge{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      background:rgba(139,92,246,0.1);
+      border:1px solid var(--card-border);
+      padding:10px 18px;
+      border-radius:24px;
+      font-size:13px;
+      color:var(--text-secondary);
+      backdrop-filter:blur(10px);
+    }
+    .users-badge strong{color:var(--accent-hover)}
+    
+    .hint{
+      background:rgba(16,185,129,0.08);
+      border:1px solid rgba(16,185,129,0.2);
+      padding:16px 20px;
+      border-radius:16px;
+      margin-bottom:32px;
+      font-size:14px;
+      color:#6ee7b7;
+      backdrop-filter:blur(10px);
+      animation:slideIn 0.6s ease;
+    }
+    .hint strong{color:#10b981}
+    
+    .grid{
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(380px,1fr));
+      gap:24px;
+      margin-bottom:32px;
+    }
+    
+    .card{
+      background:var(--card-bg);
+      border:1px solid var(--card-border);
+      border-radius:20px;
+      padding:28px;
+      position:relative;
+      overflow:hidden;
+      transition:all 0.3s cubic-bezier(0.4,0,0.2,1);
+      animation:fadeIn 0.6s ease backwards;
+    }
+    .card:nth-child(2){animation-delay:0.1s}
+    .card::before{
+      content:'';
+      position:absolute;
+      top:0;
+      left:0;
+      right:0;
+      height:3px;
+      background:linear-gradient(90deg,var(--accent),var(--accent-hover));
+      opacity:0;
+      transition:opacity 0.3s;
+    }
+    .card:hover{
+      transform:translateY(-4px);
+      box-shadow:0 20px 60px rgba(139,92,246,0.15);
+      border-color:rgba(139,92,246,0.3);
+    }
+    .card:hover::before{opacity:1}
+    
+    .task-header{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      margin-bottom:20px;
+    }
+    .task-header h2{
+      font-size:24px;
+      margin:0;
+      display:flex;
+      align-items:center;
+      gap:10px;
+    }
+    .task-header .emoji{
+      font-size:28px;
+      display:inline-block;
+      animation:pulse 2s ease infinite;
+    }
+    .rotation-badge{
+      background:rgba(139,92,246,0.15);
+      color:var(--accent-hover);
+      padding:6px 12px;
+      border-radius:12px;
+      font-size:12px;
+      font-weight:600;
+      border:1px solid var(--card-border);
+    }
+    
+    .rotation-info{
+      background:rgba(96,165,250,0.08);
+      border:1px dashed rgba(96,165,250,0.2);
+      padding:10px 14px;
+      border-radius:12px;
+      margin-bottom:20px;
+      font-size:13px;
+      color:#60a5fa;
+    }
+    
+    .status-grid{
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
+      gap:12px;
+      margin-bottom:20px;
+    }
+    .status-pill{
+      background:rgba(255,255,255,0.04);
+      border:1px solid rgba(255,255,255,0.06);
+      padding:14px 16px;
+      border-radius:14px;
+      text-align:center;
+      transition:all 0.3s;
+    }
+    .status-pill:hover{
+      background:rgba(255,255,255,0.06);
+      transform:scale(1.02);
+    }
+    .status-pill .label{
+      font-size:11px;
+      color:var(--text-secondary);
+      text-transform:uppercase;
+      letter-spacing:0.5px;
+      margin-bottom:6px;
+      font-weight:600;
+    }
+    .status-pill .value{
+      font-size:15px;
+      font-weight:700;
+      color:var(--text-primary);
+    }
+    .status-pill.current .value{color:#10b981}
+    .status-pill.next .value{color:#60a5fa}
+    
+    .people{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      margin:20px 0;
+    }
+    .person{
+      background:rgba(139,92,246,0.1);
+      border:1px solid var(--card-border);
+      padding:12px 18px;
+      border-radius:12px;
+      cursor:pointer;
+      font-weight:600;
+      font-size:14px;
+      transition:all 0.3s cubic-bezier(0.4,0,0.2,1);
+      position:relative;
+      overflow:hidden;
+    }
+    .person::before{
+      content:'';
+      position:absolute;
+      top:0;
+      left:-100%;
+      width:100%;
+      height:100%;
+      background:linear-gradient(90deg,transparent,rgba(255,255,255,0.1),transparent);
+      transition:left 0.5s;
+    }
+    .person:hover{
+      background:var(--accent);
+      border-color:var(--accent-hover);
+      color:#fff;
+      transform:translateY(-2px);
+      box-shadow:0 8px 20px var(--glow);
+    }
+    .person:hover::before{left:100%}
+    .person:active{transform:translateY(0)}
+    
+    .btn-group{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      margin-bottom:20px;
+    }
+    .btn{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:12px 20px;
+      border-radius:12px;
+      border:none;
+      font-weight:700;
+      font-size:14px;
+      cursor:pointer;
+      transition:all 0.3s cubic-bezier(0.4,0,0.2,1);
+      position:relative;
+      overflow:hidden;
+    }
+    .btn::after{
+      content:'';
+      position:absolute;
+      top:50%;
+      left:50%;
+      width:0;
+      height:0;
+      border-radius:50%;
+      background:rgba(255,255,255,0.2);
+      transform:translate(-50%,-50%);
+      transition:width 0.6s,height 0.6s;
+    }
+    .btn:hover::after{
+      width:300px;
+      height:300px;
+    }
+    .btn-primary{
+      background:linear-gradient(135deg,var(--accent) 0%,var(--accent-hover) 100%);
+      color:#fff;
+      box-shadow:0 8px 20px var(--glow);
+    }
+    .btn-primary:hover{
+      transform:translateY(-2px);
+      box-shadow:0 12px 30px var(--glow);
+    }
+    .btn-ghost{
+      background:transparent;
+      color:var(--text-secondary);
+      border:1px solid rgba(255,255,255,0.1);
+    }
+    .btn-ghost:hover{
+      background:rgba(255,255,255,0.05);
+      border-color:rgba(255,255,255,0.2);
+      color:var(--text-primary);
+    }
+    
+    .history{
+      max-height:180px;
+      overflow-y:auto;
+      border-top:1px solid rgba(255,255,255,0.06);
+      padding-top:16px;
+      margin-top:16px;
+    }
+    .history::-webkit-scrollbar{width:6px}
+    .history::-webkit-scrollbar-track{background:rgba(255,255,255,0.02);border-radius:10px}
+    .history::-webkit-scrollbar-thumb{background:rgba(139,92,246,0.3);border-radius:10px}
+    .history::-webkit-scrollbar-thumb:hover{background:rgba(139,92,246,0.5)}
+    .history-item{
+      padding:10px 0;
+      border-bottom:1px dashed rgba(255,255,255,0.04);
+      font-size:13px;
+      color:var(--text-secondary);
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+    }
+    .history-item:last-child{border-bottom:none}
+    .history-item strong{color:var(--text-primary)}
+    .history-empty{
+      text-align:center;
+      color:var(--text-secondary);
+      font-size:13px;
+      padding:20px 0;
+    }
+    
+    footer{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      flex-wrap:wrap;
+      gap:16px;
+      padding-top:24px;
+      border-top:1px solid rgba(255,255,255,0.06);
+    }
+    .controls{display:flex;gap:10px}
+    .footer-hint{
+      font-size:13px;
+      color:var(--text-secondary);
+      display:flex;
+      align-items:center;
+      gap:8px;
+    }
+    
+    .toast{
+      position:fixed;
+      bottom:24px;
+      left:50%;
+      transform:translateX(-50%);
+      background:linear-gradient(135deg,var(--success) 0%,#059669 100%);
+      color:#fff;
+      padding:16px 24px;
+      border-radius:14px;
+      box-shadow:0 12px 40px rgba(16,185,129,0.3);
+      font-weight:600;
+      font-size:14px;
+      animation:slideIn 0.3s ease;
+      z-index:1000;
+      max-width:90%;
+    }
+    
+    @media (max-width:768px){
+      h1{font-size:32px}
+      .grid{grid-template-columns:1fr;gap:20px}
+      .btn{padding:10px 16px;font-size:13px}
+      .person{padding:10px 14px;font-size:13px}
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>✨ Housework Tracker</h1>
+      <p class="lead">Track chores effortlessly with automatic rotation. Tap to complete and move to the next person.</p>
+      <div class="users-badge">
+        👥 <strong>Kimhak</strong>, <strong>Kim Hean</strong>, <strong>Lai</strong>, <strong>Vathana</strong>
+      </div>
+    </header>
+
+    <div class="hint">
+      📝 <strong>Quick Guide:</strong> Tap <strong>Mark Done</strong> when you finish, or tap a person's name if someone else completed it. Rotation updates automatically! 🔄
+    </div>
+
+    <div class="grid">
+      <!-- Trash Card -->
+      <div class="card">
+        <div class="task-header">
+          <h2><span class="emoji">🗑️</span> Take Trash</h2>
+          <div class="rotation-badge">👥 <span id="trash-size">4</span> people</div>
+        </div>
+
+        <div class="rotation-info">
+          🔄 Auto-rotation after each completion
+        </div>
+
+        <div class="status-grid">
+          <div class="status-pill current">
+            <div class="label">Current</div>
+            <div class="value" id="trash-current">—</div>
+          </div>
+          <div class="status-pill">
+            <div class="label">Last Done</div>
+            <div class="value" id="trash-last">—</div>
+          </div>
+          <div class="status-pill next">
+            <div class="label">Up Next</div>
+            <div class="value" id="trash-next">—</div>
+          </div>
+        </div>
+
+        <div class="people" id="trash-people"></div>
+
+        <div class="btn-group">
+          <button class="btn btn-primary" id="trash-done">✓ Mark Done</button>
+          <button class="btn btn-ghost" id="trash-who-last">Last?</button>
+          <button class="btn btn-ghost" id="trash-who-next">Next?</button>
+        </div>
+
+        <div class="history" id="trash-history"></div>
+      </div>
+
+      <!-- Bathroom Card -->
+      <div class="card">
+        <div class="task-header">
+          <h2><span class="emoji">🛁</span> Clean Bathroom</h2>
+          <div class="rotation-badge">👥 <span id="bath-size">4</span> people</div>
+        </div>
+
+        <div class="rotation-info">
+          🔄 Tap DONE to rotate to next person
+        </div>
+
+        <div class="status-grid">
+          <div class="status-pill current">
+            <div class="label">Current</div>
+            <div class="value" id="bath-current">—</div>
+          </div>
+          <div class="status-pill">
+            <div class="label">Last Done</div>
+            <div class="value" id="bath-last">—</div>
+          </div>
+          <div class="status-pill next">
+            <div class="label">Up Next</div>
+            <div class="value" id="bath-next">—</div>
+          </div>
+        </div>
+
+        <div class="people" id="bath-people"></div>
+
+        <div class="btn-group">
+          <button class="btn btn-primary" id="bath-done">✓ Mark Done</button>
+          <button class="btn btn-ghost" id="bath-who-last">Last?</button>
+          <button class="btn btn-ghost" id="bath-who-next">Next?</button>
+        </div>
+
+        <div class="history" id="bath-history"></div>
+      </div>
+    </div>
+
+    <footer>
+      <div class="controls">
+        <button class="btn btn-ghost" id="reset-btn">🔄 Reset</button>
+        <button class="btn btn-ghost" id="export-btn">📤 Export</button>
+        <button class="btn btn-ghost" id="import-btn">📥 Import</button>
+      </div>
+      <div class="footer-hint">
+        📱 Add to home screen for quick access
+      </div>
+    </footer>
+  </div>
+
+  <input type="file" id="file-input" accept=".json" style="display:none"/>
+
+  <script>
+    const DEFAULT_STATE = {
+      trash:{rotation:["Kimhak","Kim Hean","Lai","Vathana"],history:[]},
+      bath:{rotation:["Lai","Vathana","Kimhak","Kim Hean"],history:[]},
+      updatedAt:null
+    };
+
+    function nowStr(){return new Date().toLocaleString()}
+    function save(){localStorage.setItem("house_tasks_state_v2",JSON.stringify(state))}
+    function load(){
+      const raw=localStorage.getItem("house_tasks_state_v2");
+      if(!raw)return JSON.parse(JSON.stringify(DEFAULT_STATE));
+      try{return JSON.parse(raw)}catch(e){return JSON.parse(JSON.stringify(DEFAULT_STATE))}
+    }
+
+    let state=load();
+
+    const dom={
+      trash:{
+        current:document.getElementById("trash-current"),
+        last:document.getElementById("trash-last"),
+        next:document.getElementById("trash-next"),
+        people:document.getElementById("trash-people"),
+        history:document.getElementById("trash-history"),
+        done:document.getElementById("trash-done"),
+        whoLast:document.getElementById("trash-who-last"),
+        whoNext:document.getElementById("trash-who-next"),
+        size:document.getElementById("trash-size")
+      },
+      bath:{
+        current:document.getElementById("bath-current"),
+        last:document.getElementById("bath-last"),
+        next:document.getElementById("bath-next"),
+        people:document.getElementById("bath-people"),
+        history:document.getElementById("bath-history"),
+        done:document.getElementById("bath-done"),
+        whoLast:document.getElementById("bath-who-last"),
+        whoNext:document.getElementById("bath-who-next"),
+        size:document.getElementById("bath-size")
+      },
+      reset:document.getElementById("reset-btn"),
+      exportBtn:document.getElementById("export-btn"),
+      importBtn:document.getElementById("import-btn"),
+      fileInput:document.getElementById("file-input")
+    };
+
+    function render(){
+      renderTask("trash");
+      renderTask("bath");
+      save();
+    }
+
+    function renderTask(key){
+      const task=state[key],d=dom[key];
+      d.size.textContent=task.rotation.length;
+      d.current.textContent=task.rotation[0]??"—";
+      d.next.textContent=task.rotation[1]??task.rotation[0]??"—";
+      
+      const lastEntry=task.history.length?task.history[task.history.length-1]:null;
+      d.last.textContent=lastEntry?lastEntry.who:"—";
+      
+      d.people.innerHTML="";
+      task.rotation.forEach(p=>{
+        let b=document.createElement("button");
+        b.className="person";
+        b.textContent="👤 "+p;
+        b.onclick=()=>markDoneBy(key,p);
+        d.people.appendChild(b);
+      });
+      
+      d.history.innerHTML="";
+      if(!task.history.length){
+        d.history.innerHTML='<div class="history-empty">No records yet. Start tracking!</div>';
+        return;
+      }
+      
+      task.history.slice().reverse().forEach(i=>{
+        let r=document.createElement("div");
+        r.className="history-item";
+        r.innerHTML=`<strong>${i.who}</strong><span>${i.when}</span>`;
+        d.history.appendChild(r);
+      });
+    }
+
+    function rotate(arr,c=1){
+      if(arr.length<=1)return arr;
+      c=((c%arr.length)+arr.length)%arr.length;
+      return arr.slice(c).concat(arr.slice(0,c));
+    }
+
+    function markDone(key){
+      let who=state[key].rotation[0];
+      markDoneBy(key,who);
+    }
+
+    function markDoneBy(key,who){
+      const t=state[key],idx=t.rotation.indexOf(who);
+      if(idx===-1)return;
+      t.rotation=rotate(t.rotation,idx);
+      t.history.push({who:t.rotation[0],when:nowStr()});
+      t.rotation=rotate(t.rotation,1);
+      render();
+      toast(`✅ ${who} completed ${key==='trash'?'trash':'bathroom'} task. Next up: ${t.rotation[0]}`);
+    }
+
+    function toast(msg){
+      const t=document.createElement("div");
+      t.className="toast";
+      t.textContent=msg;
+      document.body.appendChild(t);
+      setTimeout(()=>t.remove(),3000);
+    }
+
+    dom.trash.done.onclick=()=>markDone("trash");
+    dom.bath.done.onclick=()=>markDone("bath");
+
+    dom.trash.whoLast.onclick=()=>alert(`Last: ${dom.trash.last.textContent}`);
+    dom.bath.whoLast.onclick=()=>alert(`Last: ${dom.bath.last.textContent}`);
+
+    dom.trash.whoNext.onclick=()=>alert(`Next: ${dom.trash.next.textContent}`);
+    dom.bath.whoNext.onclick=()=>alert(`Next: ${dom.bath.next.textContent}`);
+
+    dom.reset.onclick=()=>{
+      if(confirm("Reset everything? This will clear all history.")){
+        state=JSON.parse(JSON.stringify(DEFAULT_STATE));
+        render();
+        toast("🔄 All data has been reset");
+      }
+    };
+
+    dom.exportBtn.onclick=()=>{
+      let blob=new Blob([JSON.stringify(state,null,2)],{type:"application/json"});
+      let url=URL.createObjectURL(blob);
+      let a=document.createElement("a");
+      a.href=url;
+      a.download="house_tasks_state.json";
+      a.click();
+      toast("📤 Data exported successfully");
+    };
+
+    dom.importBtn.onclick=()=>dom.fileInput.click();
+    dom.fileInput.onchange=(e)=>{
+      const f=e.target.files[0];
+      if(!f)return;
+      const reader=new FileReader();
+      reader.onload=ev=>{
+        try{
+          const d=JSON.parse(ev.target.result);
+          state=d;
+          render();
+          toast("📥 Data imported successfully");
+        }catch{
+          alert("Invalid JSON file. Please check the format.");
+        }
+      };
+      reader.readAsText(f);
+    };
+
+    render();
+  </script>
+</body>
+</html>
