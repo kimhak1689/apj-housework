@@ -161,148 +161,228 @@ This single-file app replaces window.storage with a Supabase-backed persistent s
 
   <!-- Supabase JS (bundle) via CDN -->
   <script type="module">
-    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2?bundle';
 
-    // ====== EDIT THESE WITH YOUR SUPABASE CREDENTIALS ======
-    const SUPABASE_URL = 'https://nztgpfwoiaohuadsvxop.supabase.co'; // <-- replace
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im56dGdwZndvaWFvaHVhZHN2eG9wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjMyNzk0MjIsImV4cCI6MjA3ODg1NTQyMn0.zNjJF0S0xQXYNHt6GmAMfF3IjtrxeUAFDkYrK979PrE'; // <-- replace
-    const DB_ROW_ID = 1; // single-row pattern used by this demo
-    // ======================================================
+    /* =======================
+      SUPABASE CONFIG
+    ======================= */
+    const SUPABASE_URL = 'https://nztgpfwoiaohuadsvxop.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im56dGdwZndvaWFvaHVhZHN2eG9wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjMyNzk0MjIsImV4cCI6MjA3ODg1NTQyMn0.zNjJF0S0xQXYNHt6GmAMfF3IjtrxeUAFDkYrK979PrE';
+    const DB_ROW_ID = 1;
 
-    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      realtime: { params: { eventsPerSecond: 10 } }
-    });
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+    /* =======================
+      DEFAULT STATE
+    ======================= */
     const DEFAULT_STATE = {
-      trash:{rotation:["Kimhak","Kim Hean","Lai","Vathana"],history:[]},
-      bath:{rotation:["Lai","Vathana","Kimhak","Kim Hean"],history:[]},
-      updatedAt:null
+      trash: {
+        rotation: ["Kimhak", "Kim Hean", "Lai", "Vathana"],
+        history: []
+      },
+      bath: {
+        rotation: ["Lai", "Vathana", "Kimhak", "Kim Hean"],
+        history: []
+      },
+      updatedAt: null
     };
 
-    // --- Helpers ---
-    function nowStr(){return new Date().toLocaleString()}
-    function toast(msg){const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),3000)}
-    function rotate(arr,c=1){if(arr.length<=1)return arr;c=((c%arr.length)+arr.length)%arr.length;return arr.slice(c).concat(arr.slice(0,c));}
+    /* =======================
+      HELPERS
+    ======================= */
+    const nowStr = () => new Date().toLocaleString();
 
-    // --- DOM refs ---
-    const dom={
-      trash:{current:document.getElementById('trash-current'),last:document.getElementById('trash-last'),next:document.getElementById('trash-next'),people:document.getElementById('trash-people'),history:document.getElementById('trash-history'),done:document.getElementById('trash-done'),whoLast:document.getElementById('trash-who-last'),whoNext:document.getElementById('trash-who-next'),size:document.getElementById('trash-size')},
-      bath:{current:document.getElementById('bath-current'),last:document.getElementById('bath-last'),next:document.getElementById('bath-next'),people:document.getElementById('bath-people'),history:document.getElementById('bath-history'),done:document.getElementById('bath-done'),whoLast:document.getElementById('bath-who-last'),whoNext:document.getElementById('bath-who-next'),size:document.getElementById('bath-size')},
-      reset:document.getElementById('reset-btn'),exportBtn:document.getElementById('export-btn'),importBtn:document.getElementById('import-btn'),fileInput:document.getElementById('file-input')
-    };
-
-    // --- Application state ---
-    let state = JSON.parse(JSON.stringify(DEFAULT_STATE));
-    let saving = false;
-
-    // --- Load from Supabase ---
-    async function loadFromDb(){
-      try{
-        const { data, error } = await supabase
-          .from('house_tasks')
-          .select('state, updated_at')
-          .eq('id', DB_ROW_ID)
-          .single();
-
-        if(error && error.code === 'PGRST116'){
-          // no row found: create default
-          await supabase.from('house_tasks').insert([{ id: DB_ROW_ID, state: DEFAULT_STATE }]);
-          state = JSON.parse(JSON.stringify(DEFAULT_STATE));
-          return;
-        }
-        if(error){
-          console.error('Load error', error);
-          toast('⚠️ Failed to load from DB, using defaults');
-          state = JSON.parse(JSON.stringify(DEFAULT_STATE));
-          return;
-        }
-        state = data?.state ?? JSON.parse(JSON.stringify(DEFAULT_STATE));
-      }catch(e){
-        console.error('Unexpected load error', e);
-        toast('⚠️ Load failed, using defaults');
-        state = JSON.parse(JSON.stringify(DEFAULT_STATE));
-      }
+    function toast(msg) {
+      const t = document.createElement('div');
+      t.className = 'toast';
+      t.textContent = msg;
+      document.body.appendChild(t);
+      setTimeout(() => t.remove(), 3000);
     }
 
-    // --- Save to Supabase (upsert) ---
-    async function saveToDb(){
-      if(saving) return; // prevent concurrent saves
+    function rotate(arr, count = 1) {
+      if (arr.length <= 1) return arr;
+      count = ((count % arr.length) + arr.length) % arr.length;
+      return arr.slice(count).concat(arr.slice(0, count));
+    }
+
+    /* =======================
+      DOM REFERENCES
+    ======================= */
+    const dom = {
+      trash: {
+        current: document.getElementById('trash-current'),
+        last: document.getElementById('trash-last'),
+        next: document.getElementById('trash-next'),
+        people: document.getElementById('trash-people'),
+        history: document.getElementById('trash-history'),
+        done: document.getElementById('trash-done'),
+        size: document.getElementById('trash-size')
+      },
+      bath: {
+        current: document.getElementById('bath-current'),
+        last: document.getElementById('bath-last'),
+        next: document.getElementById('bath-next'),
+        people: document.getElementById('bath-people'),
+        history: document.getElementById('bath-history'),
+        done: document.getElementById('bath-done'),
+        size: document.getElementById('bath-size')
+      },
+      reset: document.getElementById('reset-btn')
+    };
+
+    /* =======================
+      APP STATE
+    ======================= */
+    let state = structuredClone(DEFAULT_STATE);
+    let saving = false;
+
+    /* =======================
+      LOAD FROM DATABASE
+    ======================= */
+    async function loadFromDb() {
+      const { data, error } = await supabase
+        .from('house_tasks')
+        .select('state')
+        .eq('id', DB_ROW_ID)
+        .single();
+
+      if (error && error.code === 'PGRST116') {
+        await supabase.from('house_tasks').insert({
+          id: DB_ROW_ID,
+          state: DEFAULT_STATE
+        });
+        state = structuredClone(DEFAULT_STATE);
+        return;
+      }
+
+      if (error) {
+        console.error(error);
+        toast('⚠️ Failed to load data');
+        state = structuredClone(DEFAULT_STATE);
+        return;
+      }
+
+      state = data.state ?? structuredClone(DEFAULT_STATE);
+    }
+
+    /* =======================
+      SAVE TO DATABASE
+    ======================= */
+    async function saveToDb() {
+      if (saving) return;
       saving = true;
-      try{
-        const payload = { id: DB_ROW_ID, state };
-        const { error } = await supabase.from('house_tasks').upsert(payload, { onConflict: 'id' });
-        if(error){ console.error('Save error', error); toast('⚠️ Save failed'); }
-      }catch(e){ console.error('Unexpected save error', e); toast('⚠️ Save failed'); }
+
+      const { error } = await supabase
+        .from('house_tasks')
+        .upsert(
+          { id: DB_ROW_ID, state },
+          { onConflict: 'id' }
+        );
+
+      if (error) {
+        console.error(error);
+        toast('❌ Save failed');
+      }
+
       saving = false;
     }
 
-    // --- Render UI ---
-    function render(){ renderTask('trash'); renderTask('bath'); }
-    function renderTask(key){ const task = state[key], d = dom[key]; d.size.textContent = task.rotation.length; d.current.textContent = task.rotation[0] ?? '—'; d.next.textContent = task.rotation[1] ?? task.rotation[0] ?? '—'; const lastEntry = task.history.length ? task.history[task.history.length-1] : null; d.last.textContent = lastEntry ? lastEntry.who : '—'; d.people.innerHTML = ''; task.rotation.forEach(p=>{ let b = document.createElement('button'); b.className = 'person'; b.textContent = '👤 ' + p; b.onclick = ()=> markDoneBy(key,p); d.people.appendChild(b); }); d.history.innerHTML = ''; if(!task.history.length){ d.history.innerHTML = '<div class="history-empty">No records yet. Start tracking!</div>'; return; } task.history.slice().reverse().forEach(i=>{ let r = document.createElement('div'); r.className = 'history-item'; r.style.display='flex'; r.style.justifyContent='space-between'; r.style.padding='10px 0'; r.innerHTML = `<strong>${i.who}</strong><span>${i.when}</span>`; d.history.appendChild(r); }); }
+    /* =======================
+      RENDER UI
+    ======================= */
+    function renderTask(key) {
+      const task = state[key];
+      const d = dom[key];
 
-    // --- Action handlers ---
-    function markDone(key){ let who = state[key].rotation[0]; markDoneBy(key, who); }
-    function markDoneBy(key, who){ const t = state[key]; const idx = t.rotation.indexOf(who); if(idx === -1) return; // rotate so 'who' is at front
-      t.rotation = rotate(t.rotation, idx);
-      // record who did it (who will be at index 0)
-      t.history.push({who: t.rotation[0], when: nowStr()});
-      // rotate to next person
-      t.rotation = rotate(t.rotation, 1);
-      render(); // optimistic UI
-      saveToDb();
-      toast(`✅ ${who} completed ${key === 'trash' ? 'trash' : 'bathroom'}. Next: ${t.rotation[0]}`);
+      d.size.textContent = task.rotation.length;
+      d.current.textContent = task.rotation[0] ?? '—';
+      d.next.textContent = task.rotation[1] ?? task.rotation[0] ?? '—';
+
+      const last = task.history.at(-1);
+      d.last.textContent = last ? last.who : '—';
+
+      d.people.innerHTML = '';
+      task.rotation.forEach(name => {
+        const btn = document.createElement('button');
+        btn.className = 'person';
+        btn.textContent = '👤 ' + name;
+        btn.onclick = () => markDoneBy(key, name);
+        d.people.appendChild(btn);
+      });
+
+      d.history.innerHTML = '';
+      [...task.history].reverse().forEach(h => {
+        const div = document.createElement('div');
+        div.innerHTML = `<strong>${h.who}</strong> <span>${h.when}</span>`;
+        d.history.appendChild(div);
+      });
     }
 
-    // --- Wire DOM ---
-    dom.trash.done.onclick = ()=> markDone('trash');
-    dom.bath.done.onclick = ()=> markDone('bath');
-    dom.trash.whoLast.onclick = ()=> alert(`Last: ${dom.trash.last.textContent}`);
-    dom.bath.whoLast.onclick = ()=> alert(`Last: ${dom.bath.last.textContent}`);
-    dom.trash.whoNext.onclick = ()=> alert(`Next: ${dom.trash.next.textContent}`);
-    dom.bath.whoNext.onclick = ()=> alert(`Next: ${dom.bath.next.textContent}`);
+    function render() {
+      renderTask('trash');
+      renderTask('bath');
+    }
 
-    dom.reset.onclick = async ()=>{
-      if(!confirm('Reset everything? This will clear all history.')) return;
-      state = JSON.parse(JSON.stringify(DEFAULT_STATE));
+    /* =======================
+      ACTIONS
+    ======================= */
+    function markDoneBy(key, who) {
+      const t = state[key];
+      const idx = t.rotation.indexOf(who);
+      if (idx === -1) return;
+
+      t.rotation = rotate(t.rotation, idx);
+      t.history.push({ who: t.rotation[0], when: nowStr() });
+      t.rotation = rotate(t.rotation, 1);
+      state.updatedAt = Date.now();
+
+      render();
+      saveToDb();
+
+      toast(`✅ ${who} finished ${key}`);
+    }
+
+    dom.trash.done.onclick = () => markDoneBy('trash', state.trash.rotation[0]);
+    dom.bath.done.onclick = () => markDoneBy('bath', state.bath.rotation[0]);
+
+    dom.reset.onclick = async () => {
+      if (!confirm('Reset all history?')) return;
+      state = structuredClone(DEFAULT_STATE);
       render();
       await saveToDb();
-      toast('🔄 All data has been reset');
+      toast('🔄 Reset complete');
     };
 
-    dom.exportBtn.onclick = ()=>{
-      let blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
-      let url = URL.createObjectURL(blob);
-      let a = document.createElement('a'); a.href = url; a.download = 'house_tasks_state.json'; a.click();
-      toast('📤 Data exported');
-    };
+    /* =======================
+      REALTIME SYNC (FIXED)
+    ======================= */
+    supabase
+      .channel('house_tasks_sync')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'house_tasks',
+          filter: `id=eq.${DB_ROW_ID}`
+        },
+        payload => {
+          if (payload?.new?.state) {
+            state = payload.new.state;
+            render();
+            toast('🔁 Synced from server');
+          }
+        }
+      )
+      .subscribe();
 
-    dom.importBtn.onclick = ()=> dom.fileInput.click();
-    dom.fileInput.onchange = (e) => {
-      const f = e.target.files[0]; if(!f) return; const reader = new FileReader(); reader.onload = async ev => {
-        try{ const d = JSON.parse(ev.target.result); state = d; render(); await saveToDb(); toast('📥 Data imported and saved'); }catch(err){ alert('Invalid JSON file.'); }
-      }; reader.readAsText(f);
-    };
-
-    // --- Initial load and optional realtime sync ---
-    (async function init(){
-      await loadFromDb();
-      render();
-
-      // Optional: subscribe to realtime updates so multiple devices stay in sync
-      try{
-        const channel = supabase.channel('public:house_tasks')
-          .on('postgres_changes', { event: '*', schema: 'public', table: 'house_tasks', filter: `id=eq.${DB_ROW_ID}` }, payload => {
-            // payload.new.state contains remote new state
-            if(payload && payload.record && payload.record.state){
-              state = payload.record.state;
-              render();
-              toast('🔁 Updated from server');
-            }
-          })
-          .subscribe();
-      }catch(e){ console.warn('Realtime subscription failed', e); }
-    })();
-
+    /* =======================
+      INIT
+    ======================= */
+    await loadFromDb();
+    render();
   </script>
+
 </body>
 </html>
